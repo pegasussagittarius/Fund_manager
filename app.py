@@ -87,7 +87,7 @@ def get_fund_asset_holdings_cached(symbol: str):
     except Exception as e:
         return pd.DataFrame()
 
-# === Hàm cache để lấy dữ liệu lịch sử của chỉ số thị trường ===
+# === Hàm cache để lấy dữ liệu lịch sử của chỉ số thị trường (ĐÃ SỬA) ===
 @st.cache_data(show_spinner=True, ttl=60 * 60 * 2) # TTL 2 giờ cho dữ liệu chỉ số
 def get_market_index_history_cached(index_symbol: str, start_date: str, end_date: str):
     """Lấy dữ liệu lịch sử giá của chỉ số thị trường"""
@@ -97,37 +97,22 @@ def get_market_index_history_cached(index_symbol: str, start_date: str, end_date
         if df is not None and not df.empty:
             df['time'] = pd.to_datetime(df['time'])
             if 'close' in df.columns:
-                df = df.rename(columns={'close': 'close_price'})
+                df = df.rename(columns={'close': 'close_price', 'time': 'date'})
             df['symbol'] = index_symbol
-            df = df[['time', 'close_price', 'symbol']].copy()
+            df = df[['date', 'close_price', 'symbol']].copy()
+            df = df.sort_values('date').reset_index(drop=True)
         return df
     except Exception as e:
         st.warning(f"Lỗi khi lấy dữ liệu lịch sử cho chỉ số {index_symbol}: {e}")
         return pd.DataFrame()
 
-# === Hàm hỗ trợ định dạng ===
-def fmt_pct(x):
-    if pd.isna(x): return "—"
-    return f"{x * 100:.1f}%"
-
-def fmt_money_vnd(x):
-    try:
-        x = float(x)
-    except Exception:
-        return ""
-    if pd.isna(x):
-        return "—"
-    if x >= 1e12:
-        return f"{x / 1e12:.2f} nghìn tỷ"
-    return f"{x / 1e9:.1f} tỷ"
-
 # === Cấu hình trang ===
 st.set_page_config(page_title="Dữ liệu Quỹ Mở (Streamlit)", layout="wide")
-st.title("   📊    Hệ thống Phân tích Dữ liệu Quỹ Mở")
+st.title("    📊     Hệ thống Phân tích Dữ liệu Quỹ Mở")
 st.caption("Dữ liệu được cung cấp bởi Fmarket thông qua thư viện vnstock. Cập nhật theo ngày NAV công bố.")
 
 # Bộ lọc
-st.subheader("🎯 Bộ lọc")
+st.subheader(" 🎯  Bộ lọc")
 fund_type_options = {
     "Tất cả quỹ": "",
     "Quỹ cổ phiếu": "STOCK",
@@ -142,7 +127,7 @@ selected_type_label = st.selectbox(
 selected_type = fund_type_options[selected_type_label]
 
 # Nút tải lại dữ liệu
-refresh_fund_btn = st.button("🔄 Tải lại dữ liệu quỹ")
+refresh_fund_btn = st.button(" 🔄  Tải lại dữ liệu quỹ")
 
 # --- Hiển thị dữ liệu danh sách quỹ ---
 try:
@@ -177,16 +162,14 @@ try:
         }
         available_display_columns = [col for col in display_columns if col in fund_data.columns]
         display_df = fund_data[available_display_columns].rename(columns=column_names_vietnamese)
-
         # --- Hiển thị bảng danh sách quỹ ---
-        st.subheader("📋 Danh sách Quỹ")
+        st.subheader(" 📋  Danh sách Quỹ")
         display_df_reset = display_df.reset_index(drop=True)
         display_df_reset.index = display_df_reset.index + 1
         st.dataframe(display_df_reset, use_container_width=True, height=500)
-
         # --- Thêm phần chọn quỹ để xem chi tiết ---
         st.markdown("---")
-        st.subheader("🔍 Chọn Quỹ để Xem Chi Tiết")
+        st.subheader(" 🔍  Chọn Quỹ để Xem Chi Tiết")
         if 'Mã Quỹ' in display_df.columns:
             fund_options = display_df.apply(lambda row: f"{row['Mã Quỹ']} - {row.get('Tên Quỹ', 'N/A')}", axis=1).tolist()
             selected_fund_option = st.selectbox(
@@ -198,7 +181,7 @@ try:
             if selected_fund_option:
                 selected_fund_shortname = selected_fund_option.split(" - ")[0]
                 st.markdown("---")
-                st.subheader(f"📈 Chi tiết Quỹ: {selected_fund_option}")
+                st.subheader(f" 📈  Chi tiết Quỹ: {selected_fund_option}")
                 # 1. Báo cáo tăng trưởng NAV
                 st.write("**1. Báo cáo tăng trưởng NAV (Giá Trị Tài Sản Ròng trên mỗi đơn vị quỹ)**")
                 nav_report_df = get_fund_nav_report_cached(selected_fund_shortname)
@@ -374,9 +357,9 @@ try:
                         else:
                             st.info("Không có dữ liệu hợp lệ để vẽ biểu đồ phân bổ theo loại tài sản.")
 
-        # --- So sánh hiệu suất giữa các quỹ ---
+        # --- So sánh hiệu suất giữa các quỹ (MỤC 5) ---
         st.markdown("---")
-        st.subheader("5. 📊 So sánh hiệu suất giữa các quỹ")
+        st.subheader("5.  📊  So sánh hiệu suất giữa các quỹ")
         if not fund_data.empty and 'short_name' in fund_data.columns:
             fund_code_to_name_map = fund_data.apply(lambda row: f"{row['short_name']} - {row.get('name', 'N/A')}", axis=1).to_dict()
             fund_codes_for_comparison = fund_data['short_name'].tolist()
@@ -412,12 +395,12 @@ try:
                             nav_df = get_fund_nav_report_cached(fund_code)
                             if nav_df is not None and not nav_df.empty and 'date' in nav_df.columns and 'nav_per_unit' in nav_df.columns:
                                 nav_df['date'] = pd.to_datetime(nav_df['date'])
-                                nav_df = nav_df.sort_values('date').reset_index(drop=True)
                                 # Lọc theo khoảng thời gian đã chọn
                                 nav_df = nav_df[(nav_df['date'] >= pd.Timestamp(start_date_funds)) & (nav_df['date'] <= pd.Timestamp(end_date_funds))]
                                 if len(nav_df) < 2:
                                     fund_with_insufficient_data.append(fund_code)
                                     continue
+                                nav_df = nav_df.sort_values('date').reset_index(drop=True)
                                 nav_df = nav_df.copy()
                                 nav_df[f'cumulative_return_{fund_code}'] = (nav_df['nav_per_unit'] / nav_df['nav_per_unit'].iloc[0]) * 100
                                 comparison_data_list.append(nav_df[['date', f'cumulative_return_{fund_code}']])
@@ -426,19 +409,24 @@ try:
                         except Exception as e:
                             st.warning(f"Lỗi khi xử lý dữ liệu NAV cho quỹ {fund_code}: {e}")
                             fund_with_insufficient_data.append(fund_code)
+
                     if fund_with_insufficient_data:
                         st.info(f"Các quỹ sau không có đủ dữ liệu trong khoảng thời gian đã chọn để so sánh: {', '.join(fund_with_insufficient_data)}")
+
                     if comparison_data_list:
                         try:
-                            merged_df = comparison_data_list[0]
-                            for df in comparison_data_list[1:]:
-                                merged_df = pd.merge(merged_df, df, on='date', how='outer')
+                            # Sử dụng concat thay vì merge từng cái một để tránh mất dữ liệu
+                            merged_df = pd.concat(comparison_data_list, axis=1)
+                            # Loại bỏ các cột trùng lặp (nếu có), giữ lại cột đầu tiên
+                            merged_df = merged_df.loc[:,~merged_df.columns.duplicated()].groupby(level=0, axis=1).first()
                             merged_df = merged_df.sort_values('date').reset_index(drop=True)
+
                             value_vars = [f'cumulative_return_{code}' for code in selected_fund_codes_for_comparison if f'cumulative_return_{code}' in merged_df.columns]
                             if value_vars:
                                 plot_df = merged_df.melt(id_vars=['date'], value_vars=value_vars, var_name='Fund_Return_Series', value_name='Cumulative_Return')
                                 plot_df['Fund_Code'] = plot_df['Fund_Return_Series'].str.replace('cumulative_return_', '', regex=False)
                                 plot_df['Fund_Display_Name'] = plot_df['Fund_Code'].map(fund_code_to_name_map).fillna(plot_df['Fund_Code'])
+
                                 fig_comparison = px.line(
                                     plot_df,
                                     x='date',
@@ -453,6 +441,7 @@ try:
                                     legend_title="Quỹ"
                                 )
                                 st.plotly_chart(fig_comparison, use_container_width=True)
+
                                 with st.expander("Xem dữ liệu chi tiết"):
                                     display_columns = ['date'] + value_vars
                                     display_df = merged_df[display_columns].copy()
@@ -471,9 +460,9 @@ try:
         else:
             st.warning("Không thể lấy danh sách quỹ để so sánh.")
 
-        # --- So sánh hiệu suất quỹ với chỉ số thị trường ---
+        # --- So sánh hiệu suất quỹ với chỉ số thị trường (MỤC 6) ---
         st.markdown("---")
-        st.subheader("6. 📈 So sánh hiệu suất các quỹ với chỉ số thị trường")
+        st.subheader("6.  📈  So sánh hiệu suất các quỹ với chỉ số thị trường")
         market_indices = ['VNINDEX', 'VN30', 'HNXINDEX', 'UPCOMINDEX', 'HNX30']
         index_name_map = {
             'VNINDEX': 'Chỉ số VN-Index',
@@ -499,7 +488,7 @@ try:
                 format_func=lambda x: index_name_map.get(x, x),
                 key="fund_comparison_with_index_indices"
             )
-            # --- Bổ sung lựa chọn khoảng thời gian ---
+        # --- Bổ sung lựa chọn khoảng thời gian ---
         col1_date, col2_date = st.columns(2)
         with col1_date:
             start_date_indices = st.date_input(
@@ -524,18 +513,19 @@ try:
                     comparison_data_list_with_index = []
                     fund_with_insufficient_data_for_index = []
                     index_with_insufficient_data = []
+
                     # Lấy dữ liệu cho các quỹ được chọn
                     for fund_code in selected_fund_codes_for_index_comparison:
                         try:
                             nav_df = get_fund_nav_report_cached(fund_code)
                             if nav_df is not None and not nav_df.empty and 'date' in nav_df.columns and 'nav_per_unit' in nav_df.columns:
                                 nav_df['date'] = pd.to_datetime(nav_df['date'])
-                                nav_df = nav_df.sort_values('date').reset_index(drop=True)
                                 # Lọc theo khoảng thời gian đã chọn
                                 nav_df = nav_df[(nav_df['date'] >= pd.Timestamp(start_date_indices)) & (nav_df['date'] <= pd.Timestamp(end_date_indices))]
                                 if len(nav_df) < 2:
                                     fund_with_insufficient_data_for_index.append(fund_code)
                                     continue
+                                nav_df = nav_df.sort_values('date').reset_index(drop=True)
                                 nav_df = nav_df.copy()
                                 nav_df[f'cumulative_return_{fund_code}'] = (nav_df['nav_per_unit'] / nav_df['nav_per_unit'].iloc[0]) * 100
                                 comparison_data_list_with_index.append(nav_df[['date', f'cumulative_return_{fund_code}']])
@@ -544,6 +534,7 @@ try:
                         except Exception as e:
                             st.warning(f"Lỗi khi xử lý dữ liệu NAV cho quỹ {fund_code}: {e}")
                             fund_with_insufficient_data_for_index.append(fund_code)
+
                     # Lấy dữ liệu cho các chỉ số được chọn
                     for index_code in selected_indices_for_comparison:
                         try:
@@ -552,46 +543,40 @@ try:
                                 start_date=start_date_indices.strftime('%Y-%m-%d'),
                                 end_date=end_date_indices.strftime('%Y-%m-%d')
                             )
-                            if index_df is not None and not index_df.empty and 'time' in index_df.columns and 'close_price' in index_df.columns:
-                                index_df['time'] = pd.to_datetime(index_df['time'])
-                                index_df = index_df.sort_values('time').reset_index(drop=True)
-                                # Lọc theo khoảng thời gian đã chọn (đã được lọc trong hàm get_market_index_history_cached, nhưng thêm lần nữa để chắc chắn)
-                                index_df = index_df[(index_df['time'] >= pd.Timestamp(start_date_indices)) & (index_df['time'] <= pd.Timestamp(end_date_indices))]
+                            if index_df is not None and not index_df.empty and 'date' in index_df.columns and 'close_price' in index_df.columns:
+                                # Lọc theo khoảng thời gian đã chọn
+                                index_df = index_df[(index_df['date'] >= pd.Timestamp(start_date_indices)) & (index_df['date'] <= pd.Timestamp(end_date_indices))]
                                 if len(index_df) < 2:
                                     index_with_insufficient_data.append(index_code)
                                     continue
+                                index_df = index_df.sort_values('date').reset_index(drop=True)
                                 index_df = index_df.copy()
                                 index_df[f'cumulative_return_{index_code}'] = (index_df['close_price'] / index_df['close_price'].iloc[0]) * 100
-                                comparison_data_list_with_index.append(index_df[['time', f'cumulative_return_{index_code}']].rename(columns={'time': 'date'}))
+                                comparison_data_list_with_index.append(index_df[['date', f'cumulative_return_{index_code}']])
                             else:
                                 index_with_insufficient_data.append(index_code)
                         except Exception as e:
                             st.warning(f"Lỗi khi xử lý dữ liệu lịch sử cho chỉ số {index_code}: {e}")
                             index_with_insufficient_data.append(index_code)
+
                     if fund_with_insufficient_data_for_index:
                         st.info(f"Các quỹ sau không có đủ dữ liệu trong khoảng thời gian đã chọn để so sánh với chỉ số: {', '.join(fund_with_insufficient_data_for_index)}")
                     if index_with_insufficient_data:
                         st.info(f"Các chỉ số sau không có đủ dữ liệu trong khoảng thời gian đã chọn để so sánh: {', '.join(index_with_insufficient_data)}")
+
                     if comparison_data_list_with_index:
                         try:
-                            merged_df_with_index = comparison_data_list_with_index[0]
-                            for df in comparison_data_list_with_index[1:]:
-                                merged_df_with_index = pd.merge(merged_df_with_index, df, on='date', how='outer')
+                            # Sử dụng concat thay vì merge từng cái một để tránh mất dữ liệu
+                            merged_df_with_index = pd.concat(comparison_data_list_with_index, axis=1)
+                            # Loại bỏ các cột trùng lặp (nếu có), giữ lại cột đầu tiên
+                            merged_df_with_index = merged_df_with_index.loc[:,~merged_df_with_index.columns.duplicated()].groupby(level=0, axis=1).first()
                             merged_df_with_index = merged_df_with_index.sort_values('date').reset_index(drop=True)
+
                             date_cols = [col for col in merged_df_with_index.columns if col.startswith('cumulative_return_')]
                             if date_cols:
-                                filtered_df = merged_df_with_index.dropna(subset=date_cols, how='all')
-                                if not filtered_df.empty:
-                                    merged_df_with_index = filtered_df.reset_index(drop=True)
-                                else:
-                                    st.warning("Không có dữ liệu hợp lệ nào sau khi lọc.")
-                                    merged_df_with_index = pd.DataFrame()
-                            else:
-                                st.warning("Không tìm thấy cột dữ liệu lợi suất tích lũy nào.")
-                                merged_df_with_index = pd.DataFrame()
-                            if not merged_df_with_index.empty:
                                 plot_df_with_index = merged_df_with_index.melt(id_vars=['date'], value_vars=date_cols, var_name='Series_Name', value_name='Cumulative_Return')
                                 plot_df_with_index['Symbol'] = plot_df_with_index['Series_Name'].str.replace('cumulative_return_', '', regex=False)
+
                                 def map_display_name(symbol):
                                     if symbol in fund_code_to_name_map:
                                         return fund_code_to_name_map[symbol]
@@ -599,7 +584,9 @@ try:
                                         return index_name_map[symbol]
                                     else:
                                         return symbol
+
                                 plot_df_with_index['Display_Name'] = plot_df_with_index['Symbol'].apply(map_display_name)
+
                                 fig_comparison_with_index = px.line(
                                     plot_df_with_index,
                                     x='date',
@@ -614,6 +601,7 @@ try:
                                     legend_title="Tài sản"
                                 )
                                 st.plotly_chart(fig_comparison_with_index, use_container_width=True)
+
                                 with st.expander("Xem dữ liệu chi tiết"):
                                     display_df_with_index = merged_df_with_index[date_cols + ['date']].copy()
                                     rename_dict_index = {col: map_display_name(col.replace('cumulative_return_', '')) for col in date_cols}
@@ -621,17 +609,18 @@ try:
                                     display_df_with_index.index = display_df_with_index.index + 1
                                     st.dataframe(display_df_with_index, use_container_width=True)
                             else:
-                                st.warning("Không có dữ liệu hợp lệ nào để vẽ biểu đồ sau khi xử lý.")
+                                st.warning("Không tìm thấy cột dữ liệu lợi suất tích lũy nào.")
                         except Exception as e:
                             st.error(f"Lỗi khi kết hợp hoặc vẽ biểu đồ dữ liệu quỹ và chỉ số: {e}")
                     else:
                         st.info("Không có dữ liệu hợp lệ nào từ quỹ hoặc chỉ số trong khoảng thời gian đã chọn để so sánh.")
         else:
             st.info("Vui lòng chọn ít nhất một quỹ hoặc một chỉ số để bắt đầu so sánh.")
+
 except Exception as e:
     st.error(f"Lỗi khi tải dữ liệu quỹ mở: {e}")
 
-st.subheader("📝 Ghi chú")
+st.subheader(" 📝  Ghi chú")
 st.markdown("""
 - **NAV**: Giá trị tài sản ròng của quỹ trên mỗi đơn vị chứng chỉ quỹ (VNĐ).
 - **Phí quản lý**: Phí được tính hàng năm trên giá trị tài sản của nhà đầu tư.
